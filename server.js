@@ -563,6 +563,24 @@ app.delete('/api/playlists/:id/tracks/:trackId', async (req, res) => {
     }
 });
 
+app.post('/api/playlists/:playlistId/tracks/:trackId/rate', async (req, res) => {
+    try {
+        if (!playlistManager) {
+            return res.status(400).json({ error: 'Not connected to Plex server' });
+        }
+
+        const { rating } = req.body;
+        if (!rating) {
+            return res.status(400).json({ error: 'Rating is required' });
+        }
+
+        await playlistManager.rateTrack(req.params.trackId, rating);
+        res.json({ success: true, message: 'Track rated successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Debug endpoint to test request body parsing
 app.post('/api/debug/connect', (req, res) => {
     logger.info('Debug connect endpoint called', {
