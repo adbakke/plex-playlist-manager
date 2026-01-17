@@ -608,10 +608,31 @@ class PlexPlaylistManager {
         const tracksContainer = document.getElementById('playlistDetailTracks');
         if (items && items.length > 0) {
             tracksContainer.innerHTML = `
-                <h4>Tracks</h4>
+                <div class="tracks-header">
+                    <h4>Tracks</h4>
+                    <div class="bulk-actions" id="bulkActions" style="display: none;">
+                        <span class="selected-count" id="selectedCount">0 selected</span>
+                        <button class="btn btn-danger" id="removeSelectedBtn">
+                            <i class="fas fa-trash"></i> Remove Selected
+                        </button>
+                    </div>
+                </div>
                 <div id="trackItems">
+                    <div class="track-item select-all-row">
+                        <label class="track-checkbox">
+                            <input type="checkbox" id="selectAllTracks">
+                            <span class="checkmark"></span>
+                        </label>
+                        <div class="track-info select-all-label">
+                            <h5>Select All</h5>
+                        </div>
+                    </div>
                 ${items.map(track => `
                     <div class="track-item" data-rating="${track.userRating || 0}" data-track-id="${track.ratingKey}" data-playlist-item-id="${track.playlistItemID}">
+                        <label class="track-checkbox">
+                            <input type="checkbox" class="track-select" data-playlist-item-id="${track.playlistItemID}">
+                            <span class="checkmark"></span>
+                        </label>
                         <div class="track-info">
                             <h5>${this.escapeHtml(track.title)}</h5>
                             <p>${this.escapeHtml(track.grandparentTitle || 'Unknown Artist')} - ${this.escapeHtml(track.parentTitle || 'Unknown Album')}</p>
@@ -636,6 +657,7 @@ class PlexPlaylistManager {
         this.bindRatingEvents();
         this.bindSortByRatingEvent();
         this.bindRatingFilterEvent();
+        this.bindTrackSelectionEvents();
         
         // Restore filter state after binding events
         setTimeout(() => {
@@ -729,14 +751,24 @@ class PlexPlaylistManager {
     applyRatingFilters() {
         const selectedRatings = Array.from(document.querySelectorAll('#ratingFilterDropdown input[type="checkbox"]:checked'))
             .map(checkbox => parseInt(checkbox.dataset.ratingValue));
-        const trackItems = Array.from(document.querySelectorAll('#trackItems .track-item'));
+        const trackItems = Array.from(document.querySelectorAll('#trackItems .track-item:not(.select-all-row)'));
 
         trackItems.forEach(item => {
             const itemRating = parseInt(item.dataset.rating) || 0;
             // Show track if no filters are selected OR if the track's exact rating matches any selected rating
             const isVisible = selectedRatings.length === 0 || selectedRatings.includes(itemRating);
             item.style.display = isVisible ? 'flex' : 'none';
+            
+            // Uncheck hidden items
+            if (!isVisible) {
+                const checkbox = item.querySelector('.track-select');
+                if (checkbox) checkbox.checked = false;
+            }
         });
+
+        // Update selection state after filtering
+        this.updateSelectionCount();
+        this.updateSelectAllState();
     }
 
     bindSortByRatingEvent() {
@@ -940,6 +972,7 @@ class PlexPlaylistManager {
                 // Remove from DOM after animation
                 setTimeout(() => {
                     trackItem.remove();
+                    this.updateSelectionCount();
                     this.showToast('Track removed from playlist!', 'success');
                 }, 300);
             } else {
@@ -955,6 +988,215 @@ class PlexPlaylistManager {
             removeButton.innerHTML = '<i class="fas fa-times"></i>';
             removeButton.disabled = false;
             this.showToast('Failed to remove track: ' + error.message, 'error');
+        }
+    }
+
+    bindTrackSelectionEvents() {
+        const selectAllCheckbox = document.getElementById('selectAllTracks');
+        const removeSelectedBtn = document.getElementById('removeSelectedBtn');
+        
+        // Track the last clicked checkbox for shift-click range selection
+        this.lastClickedCheckbox = null;
+        
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', (e) => {
+                const checkboxes = document.querySelectorAll('.track-select');
+                checkboxes.forEach(checkbox => {
+                    // Only select visible tracks (respecting filters)
+                    const trackItem = checkbox.closest('.track-item');
+                    if (trackItem && trackItem.style.display !== 'none') {
+                        checkbox.checked = e.target.checked;
+                    }
+                });
+                this.updateSelectionCount();
+                // Reset last clicked when using select all
+                this.lastClickedCheckbox = null;
+            });
+        }
+
+        // Bind individual checkbox events with shift-click support
+        const trackCheckboxes = document.querySelectorAll('.track-select');
+        trackCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('click', (e) => {
+                // Handle shift-click for range selection
+                if (e.shiftKey && this.lastClickedCheckbox && this.lastClickedCheckbox !== checkbox) {
+                    this.selectCheckboxRange(this.lastClickedCheckbox, checkbox);
+                }
+                
+                // Update last clicked checkbox
+                this.lastClickedCheckbox = checkbox;
+            });
+            
+            checkbox.addEventListener('change', () => {
+                this.updateSelectionCount();
+                this.updateSelectAllState();
+            });
+        });
+
+        if (removeSelectedBtn) {
+            removeSelectedBtn.addEventListener('click', () => {
+                this.removeSelectedTracks();
+            });
+        }
+    }
+
+    selectCheckboxRange(startCheckbox, endCheckbox) {
+        // Get all visible checkboxes in order
+        const allCheckboxes = Array.from(document.querySelectorAll('.track-select')).filter(cb => {
+            const trackItem = cb.closest('.track-item');
+            return trackItem && trackItem.style.display !== 'none';
+        });
+        
+        const startIndex = allCheckboxes.indexOf(startCheckbox);
+        const endIndex = allCheckboxes.indexOf(endCheckbox);
+        
+        if (startIndex === -1 || endIndex === -1) return;
+        
+        // Determine the range (works regardless of click order)
+        const minIndex = Math.min(startIndex, endIndex);
+        const maxIndex = Math.max(startIndex, endIndex);
+        
+        // Set all checkboxes in range to the same state as the end checkbox
+        const targetState = endCheckbox.checked;
+        for (let i = minIndex; i <= maxIndex; i++) {
+            allCheckboxes[i].checked = targetState;
+        }
+        
+        this.updateSelectionCount();
+        this.updateSelectAllState();
+    }
+
+    updateSelectionCount() {
+        const selectedCheckboxes = document.querySelectorAll('.track-select:checked');
+        const bulkActions = document.getElementById('bulkActions');
+        const selectedCount = document.getElementById('selectedCount');
+        
+        if (selectedCheckboxes.length > 0) {
+            bulkActions.style.display = 'flex';
+            selectedCount.textContent = `${selectedCheckboxes.length} selected`;
+        } else {
+            bulkActions.style.display = 'none';
+        }
+    }
+
+    updateSelectAllState() {
+        const selectAllCheckbox = document.getElementById('selectAllTracks');
+        const visibleCheckboxes = Array.from(document.querySelectorAll('.track-select')).filter(cb => {
+            const trackItem = cb.closest('.track-item');
+            return trackItem && trackItem.style.display !== 'none';
+        });
+        const checkedCount = visibleCheckboxes.filter(cb => cb.checked).length;
+        
+        if (selectAllCheckbox) {
+            if (checkedCount === 0) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            } else if (checkedCount === visibleCheckboxes.length) {
+                selectAllCheckbox.checked = true;
+                selectAllCheckbox.indeterminate = false;
+            } else {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = true;
+            }
+        }
+    }
+
+    async removeSelectedTracks() {
+        const selectedCheckboxes = document.querySelectorAll('.track-select:checked');
+        const playlistId = this.currentPlaylist?.playlist?.ratingKey;
+        
+        if (!playlistId) {
+            this.showToast('Playlist not found', 'error');
+            return;
+        }
+
+        if (selectedCheckboxes.length === 0) {
+            this.showToast('No tracks selected', 'error');
+            return;
+        }
+
+        const trackCount = selectedCheckboxes.length;
+        if (!confirm(`Are you sure you want to remove ${trackCount} track${trackCount > 1 ? 's' : ''} from this playlist?`)) {
+            return;
+        }
+
+        // Collect playlist item IDs
+        const playlistItemIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.playlistItemId);
+        
+        // Disable the remove button and show loading state
+        const removeSelectedBtn = document.getElementById('removeSelectedBtn');
+        const originalBtnContent = removeSelectedBtn.innerHTML;
+        removeSelectedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
+        removeSelectedBtn.disabled = true;
+
+        // Mark all selected items as removing
+        playlistItemIds.forEach(id => {
+            const trackItem = document.querySelector(`.track-item[data-playlist-item-id="${id}"]`);
+            if (trackItem) {
+                trackItem.classList.add('removing');
+            }
+        });
+
+        let successCount = 0;
+        let failCount = 0;
+
+        // Remove tracks one by one (could be optimized with a batch API endpoint)
+        for (const playlistItemId of playlistItemIds) {
+            try {
+                const response = await fetch(`/api/playlists/${playlistId}/tracks/${playlistItemId}`, {
+                    method: 'DELETE',
+                });
+
+                if (response.ok) {
+                    successCount++;
+                    // Animate removal
+                    const trackItem = document.querySelector(`.track-item[data-playlist-item-id="${playlistItemId}"]`);
+                    if (trackItem) {
+                        trackItem.style.transition = 'all 0.3s ease';
+                        trackItem.style.transform = 'translateX(-100%)';
+                        trackItem.style.opacity = '0';
+                        setTimeout(() => trackItem.remove(), 300);
+                    }
+                } else {
+                    failCount++;
+                    const trackItem = document.querySelector(`.track-item[data-playlist-item-id="${playlistItemId}"]`);
+                    if (trackItem) {
+                        trackItem.classList.remove('removing');
+                    }
+                }
+            } catch (error) {
+                failCount++;
+                const trackItem = document.querySelector(`.track-item[data-playlist-item-id="${playlistItemId}"]`);
+                if (trackItem) {
+                    trackItem.classList.remove('removing');
+                }
+            }
+        }
+
+        // Restore button state
+        removeSelectedBtn.innerHTML = originalBtnContent;
+        removeSelectedBtn.disabled = false;
+
+        // Update selection state after a short delay to let animations complete
+        setTimeout(() => {
+            this.updateSelectionCount();
+            this.updateSelectAllState();
+            
+            // Uncheck select all
+            const selectAllCheckbox = document.getElementById('selectAllTracks');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            }
+        }, 350);
+
+        // Show result toast
+        if (failCount === 0) {
+            this.showToast(`Successfully removed ${successCount} track${successCount > 1 ? 's' : ''}!`, 'success');
+        } else if (successCount === 0) {
+            this.showToast(`Failed to remove tracks`, 'error');
+        } else {
+            this.showToast(`Removed ${successCount} track${successCount > 1 ? 's' : ''}, ${failCount} failed`, 'warning');
         }
     }
 

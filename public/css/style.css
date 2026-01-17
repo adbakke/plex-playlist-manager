@@ -918,7 +918,7 @@ body {
         margin: 1rem;
     }
 
-    .playlist-detail-container .playlist-tracks h4 {
+    .playlist-detail-container .tracks-header {
         top: 60px;
     }
 
@@ -953,12 +953,7 @@ body {
 }
 
 .playlist-detail-container .playlist-tracks h4 {
-    margin-bottom: 1rem;
-    padding: 1rem 1.5rem;
-    position: sticky;
-    top: 120px; /* Add more space to clear the filter buttons */
-    background-color: var(--surface-color);
-    z-index: 50;
+    margin-bottom: 0;
     margin-top: 0;
 }
 
@@ -1092,4 +1087,201 @@ body {
     height: 2rem;
     width: 2rem;
     border-radius: 4px;
+}
+
+/* Track Selection Checkboxes */
+.track-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.track-checkbox input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.track-checkbox .checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 22px;
+    width: 22px;
+    background-color: var(--background-color);
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    transition: var(--transition);
+}
+
+.track-checkbox:hover .checkmark {
+    border-color: var(--primary-color);
+}
+
+.track-checkbox input:checked ~ .checkmark {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.track-checkbox input:indeterminate ~ .checkmark {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.track-checkbox .checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.track-checkbox input:checked ~ .checkmark:after {
+    display: block;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid var(--background-color);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.track-checkbox input:indeterminate ~ .checkmark:after {
+    display: block;
+    left: 4px;
+    top: 8px;
+    width: 10px;
+    height: 2px;
+    background-color: var(--background-color);
+    border: none;
+    transform: none;
+}
+
+/* Select All Row */
+.select-all-row {
+    background-color: var(--surface-color);
+    border-bottom: 2px solid var(--border-color);
+    padding: 0.75rem 1rem !important;
+    margin-bottom: 0.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.select-all-row .select-all-label h5 {
+    color: var(--text-secondary);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* Tracks Header with Bulk Actions */
+.tracks-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 1rem 1.5rem;
+    position: sticky;
+    top: 120px;
+    background-color: var(--surface-color);
+    z-index: 50;
+    margin-top: 0;
+}
+
+.tracks-header h4 {
+    margin: 0;
+    padding: 0;
+    position: static;
+    background: none;
+}
+
+.bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.selected-count {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    background-color: var(--background-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.bulk-actions .btn-danger {
+    padding: 0.5rem 1rem;
+}
+
+/* Track item with checkbox */
+.track-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    transition: var(--transition);
+}
+
+/* Highlight selected tracks */
+.track-item:has(.track-select:checked) {
+    background-color: rgba(229, 160, 13, 0.1);
+    border-left: 3px solid var(--primary-color);
+}
+
+/* Mobile responsiveness for bulk actions */
+@media (max-width: 768px) {
+    .tracks-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        top: 60px;
+    }
+    
+    .bulk-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .track-item {
+        gap: 0.75rem;
+    }
+    
+    .track-checkbox {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .track-checkbox .checkmark {
+        height: 18px;
+        width: 18px;
+    }
+    
+    .track-checkbox input:checked ~ .checkmark:after {
+        left: 5px;
+        top: 1px;
+        width: 4px;
+        height: 8px;
+    }
 }
