@@ -61,6 +61,43 @@
                             <i class="fas fa-file-alt"></i> Debug Logs
                         </button>
                     </nav>
+                    
+                    <div class="playlist-filters" id="playlistFilters" style="display: none;">
+                        <div class="filter-section">
+                            <h4><i class="fas fa-filter"></i> Filters</h4>
+                            <div class="filter-controls">
+                                <button id="sortByRatingBtn" class="btn btn-secondary btn-block">
+                                    <i class="fas fa-sort"></i> Sort by Rating
+                                </button>
+                                <div class="rating-filter-dropdown">
+                                    <button id="ratingFilterBtn" class="btn btn-secondary dropdown-toggle btn-block">
+                                        <i class="fas fa-filter"></i> Filter by Rating
+                                        <i class="fas fa-chevron-down"></i>
+                                    </button>
+                                    <div id="ratingFilterDropdown" class="dropdown-menu">
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" data-rating-value="10"> 5 Stars
+                                        </label>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" data-rating-value="8"> 4 Stars
+                                        </label>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" data-rating-value="6"> 3 Stars
+                                        </label>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" data-rating-value="4"> 2 Stars
+                                        </label>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" data-rating-value="2"> 1 Star
+                                        </label>
+                                    </div>
+                                </div>
+                                <button id="clearFiltersBtn" class="btn btn-secondary btn-block">
+                                    <i class="fas fa-times"></i> Clear Filters
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="content">
@@ -71,10 +108,19 @@
                                 <i class="fas fa-plus"></i> Create Playlist
                             </button>
                         </div>
-                        <div class="playlists-grid" id="playlistsGrid">
-                            <div class="loading">
-                                <i class="fas fa-spinner fa-spin"></i> Loading playlists...
-                            </div>
+                        <div class="table-container">
+                            <table class="playlist-table">
+                                <thead>
+                                    <tr>
+                                        <th data-sort="title">Playlist Name</th>
+                                        <th data-sort="tracks">Tracks</th>
+                                        <th data-sort="duration">Duration</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="playlistsTableBody">
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -132,6 +178,21 @@
                                     <i class="fas fa-spinner fa-spin"></i> Loading logs...
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="playlistDetailView">
+                        <div class="view-header">
+                            <div class="playlist-header-info">
+                                <button class="btn btn-secondary" id="backToPlaylistsBtn">
+                                    <i class="fas fa-arrow-left"></i> Back to Playlists
+                                </button>
+                                <h2 id="playlistDetailTitle"><i class="fas fa-music"></i> Playlist Details</h2>
+                            </div>
+                        </div>
+                        <div class="playlist-detail-container">
+                            <div class="playlist-info" id="playlistDetailInfo"></div>
+                            <div class="playlist-tracks" id="playlistDetailTracks"></div>
                         </div>
                     </div>
                 </div>

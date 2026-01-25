@@ -2,6 +2,7 @@
 
 const { Command } = require('commander');
 const dotenv = require('dotenv');
+const PlexClient = require('./lib/plex-client');
 const PlaylistManager = require('./lib/playlist-manager');
 
 dotenv.config();
@@ -23,7 +24,8 @@ if (!token) {
   process.exit(1);
 }
 
-const manager = new PlaylistManager(serverUrl, token);
+const plexClient = new PlexClient(serverUrl, token);
+const manager = new PlaylistManager(plexClient);
 
 program
   .command('list')
