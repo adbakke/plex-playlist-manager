@@ -83,6 +83,15 @@ app.get('/', (req, res) => {
     }
 });
 
+// Handle playlist URLs - serve the same index.html, let frontend handle routing
+app.get('/playlist/:id', (req, res) => {
+    if (!configManager.isSetupCompleted()) {
+        res.redirect('/');
+    } else {
+        res.sendFile(path.join(__dirname, 'views', 'index.html'));
+    }
+});
+
 app.get('/setup', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'setup.html'));
 });

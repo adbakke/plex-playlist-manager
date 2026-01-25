@@ -4,8 +4,8 @@
     "host": "localhost"
   },
   "plex": {
-    "serverUrl": "",
-    "token": "",
+    "serverUrl": "http://172.23.96.1:32400",
+    "token": "xyt-YJupb9dme8zz6gGD",
     "autoConnect": true
   },
   "ui": {
