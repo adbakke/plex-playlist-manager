@@ -581,8 +581,90 @@ body {
     overflow-y: auto;
 }
 
+/* Custom Scrollbar Styling */
+.modal-content::-webkit-scrollbar,
+.logs-content::-webkit-scrollbar,
+.playlist-tracks::-webkit-scrollbar,
+#trackItems::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.modal-content::-webkit-scrollbar-track,
+.logs-content::-webkit-scrollbar-track,
+.playlist-tracks::-webkit-scrollbar-track,
+#trackItems::-webkit-scrollbar-track {
+    background: var(--background-color);
+    border-radius: 5px;
+}
+
+.modal-content::-webkit-scrollbar-thumb,
+.logs-content::-webkit-scrollbar-thumb,
+.playlist-tracks::-webkit-scrollbar-thumb,
+#trackItems::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 5px;
+    border: 2px solid var(--background-color);
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover,
+.logs-content::-webkit-scrollbar-thumb:hover,
+.playlist-tracks::-webkit-scrollbar-thumb:hover,
+#trackItems::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* Firefox scrollbar styling */
+.modal-content,
+.logs-content,
+.playlist-tracks,
+#trackItems {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--background-color);
+}
+
 .modal-content.large {
     max-width: 800px;
+}
+
+/* Confirm Modal */
+.modal-content.confirm-modal {
+    max-width: 400px;
+    text-align: center;
+}
+
+.confirm-modal-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+.confirm-modal-icon {
+    font-size: 3rem;
+    color: var(--warning-color);
+}
+
+.confirm-modal-icon.danger {
+    color: var(--error-color);
+}
+
+.confirm-modal-content p {
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.confirm-modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.confirm-modal-actions .btn {
+    min-width: 100px;
 }
 
 .modal-header {
@@ -818,6 +900,19 @@ body {
 
 .rating .fa-star.rated {
     color: #f8d22f;
+}
+
+/* Playlist Type and Smart Icons */
+.playlist-type-icon {
+    color: var(--primary-color);
+    margin-right: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.smart-playlist-icon {
+    color: var(--warning-color);
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
 }
 
 .playlist-table th[data-sort]::after {
@@ -1181,32 +1276,145 @@ body {
     font-size: 0.9rem;
 }
 
-/* Tracks Header with Bulk Actions */
-.tracks-header {
+/* Tracks Toolbar */
+.tracks-toolbar {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    justify-content: space-between;
+    gap: 1rem;
     padding: 1rem 1.5rem;
-    position: sticky;
-    top: 120px;
     background-color: var(--surface-color);
-    z-index: 50;
-    margin-top: 0;
+    border-bottom: 1px solid var(--border-color);
 }
 
-.tracks-header h4 {
-    margin: 0;
-    padding: 0;
-    position: static;
+.tracks-search {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    max-width: 400px;
+    background-color: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.5rem 1rem;
+    transition: var(--transition);
+}
+
+.tracks-search:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(229, 160, 13, 0.2);
+}
+
+.tracks-search i {
+    color: var(--text-muted);
+}
+
+.tracks-search input {
+    flex: 1;
     background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    outline: none;
 }
 
-.bulk-actions {
+.tracks-search input::placeholder {
+    color: var(--text-muted);
+}
+
+/* Bulk Actions Bar */
+.bulk-actions-bar {
     display: flex;
     align-items: center;
     gap: 1rem;
     animation: fadeIn 0.2s ease;
+}
+
+/* Empty tracks message */
+.empty-tracks-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.empty-tracks-message i {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-tracks-message p {
+    font-size: 1rem;
+}
+
+/* Pagination */
+.tracks-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--surface-color);
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+
+.pagination-info {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.pagination-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-current {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.pagination-size {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pagination-size label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.pagination-size select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--background-color);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.pagination-size select:focus {
+    outline: none;
+    border-color: var(--primary-color);
 }
 
 @keyframes fadeIn {
@@ -1250,18 +1458,30 @@ body {
     border-left: 3px solid var(--primary-color);
 }
 
-/* Mobile responsiveness for bulk actions */
+/* Mobile responsiveness for tracks toolbar and pagination */
 @media (max-width: 768px) {
-    .tracks-header {
+    .tracks-toolbar {
         flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-        top: 60px;
+        align-items: stretch;
     }
     
-    .bulk-actions {
-        width: 100%;
+    .tracks-search {
+        max-width: none;
+    }
+    
+    .bulk-actions-bar {
         justify-content: space-between;
+        width: 100%;
+    }
+    
+    .tracks-pagination {
+        flex-direction: column;
+        gap: 0.75rem;
+        text-align: center;
+    }
+    
+    .pagination-controls {
+        order: -1;
     }
     
     .track-item {
@@ -1283,5 +1503,211 @@ body {
         top: 1px;
         width: 4px;
         height: 8px;
+    }
+}
+
+/* Track Details Modal Styles */
+.track-details-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.track-details-header {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.track-details-artwork {
+    width: 150px;
+    height: 150px;
+    border-radius: var(--border-radius);
+    object-fit: cover;
+    background-color: var(--background-color);
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.track-details-artwork-placeholder {
+    width: 150px;
+    height: 150px;
+    border-radius: var(--border-radius);
+    background-color: var(--background-color);
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.track-details-artwork-placeholder i {
+    font-size: 3rem;
+    color: var(--text-muted);
+}
+
+.track-details-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.track-details-main h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+    word-wrap: break-word;
+}
+
+.track-details-main .track-artist {
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
+}
+
+.track-details-main .track-album {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.track-details-rating {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.track-details-rating .fa-star {
+    color: #ccc;
+    font-size: 1.2rem;
+}
+
+.track-details-rating .fa-star.rated {
+    color: #f8d22f;
+}
+
+.track-details-rating .rating-label {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-left: 0.5rem;
+}
+
+.track-details-section {
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+}
+
+.track-details-section h4 {
+    color: var(--text-primary);
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.track-details-section h4 i {
+    color: var(--primary-color);
+}
+
+.track-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.track-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.track-detail-item .label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.track-detail-item .value {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    word-wrap: break-word;
+}
+
+.track-detail-item .value.highlight {
+    color: var(--primary-color);
+}
+
+/* Media info styling */
+.media-info-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.media-info-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background-color: var(--background-color);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.media-info-item i {
+    color: var(--primary-color);
+    font-size: 1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.media-info-item span {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+/* Clickable track title */
+.track-info h5.track-title-link {
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.track-info h5.track-title-link:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+/* Track Details Modal - Wider */
+#trackDetailsModal .modal-content {
+    max-width: 900px;
+}
+
+/* Mobile responsiveness for track details modal */
+@media (max-width: 960px) {
+    #trackDetailsModal .modal-content {
+        max-width: 95%;
+        margin: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .track-details-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .track-details-main {
+        text-align: center;
+    }
+    
+    .track-details-rating {
+        justify-content: center;
+    }
+    
+    .track-details-grid {
+        grid-template-columns: 1fr;
     }
 }

@@ -115,6 +115,8 @@
                                         <th data-sort="title">Playlist Name</th>
                                         <th data-sort="tracks">Tracks</th>
                                         <th data-sort="duration">Duration</th>
+                                        <th data-sort="added">Added</th>
+                                        <th data-sort="updated">Updated</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -234,6 +236,43 @@
             <div class="modal-body">
                 <div class="playlist-info" id="playlistInfo"></div>
                 <div class="playlist-tracks" id="playlistTracks"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="trackDetailsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="trackDetailsTitle">Track Details</h3>
+                <button class="modal-close" id="trackDetailsClose">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="track-details-content" id="trackDetailsContent">
+                    <!-- Track details will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="confirmModal">
+        <div class="modal-content confirm-modal">
+            <div class="modal-header">
+                <h3 id="confirmModalTitle">Confirm</h3>
+                <button class="modal-close" id="confirmModalClose">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-modal-content">
+                    <i class="fas fa-exclamation-triangle confirm-modal-icon" id="confirmModalIcon"></i>
+                    <p id="confirmModalMessage">Are you sure?</p>
+                </div>
+                <div class="confirm-modal-actions">
+                    <button class="btn btn-secondary" id="confirmModalCancel">Cancel</button>
+                    <button class="btn btn-danger" id="confirmModalConfirm">Confirm</button>
+                </div>
             </div>
         </div>
     </div>

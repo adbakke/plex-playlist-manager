@@ -9,6 +9,42 @@ class PlexPlaylistManager {
         this.bindEvents();
         this.updateConnectionStatus();
         this.checkAutoConnection();
+        this.handleInitialRoute();
+        
+        // Handle browser back/forward navigation
+        window.addEventListener('popstate', (e) => {
+            this.handleRouteChange(e.state);
+        });
+    }
+
+    handleInitialRoute() {
+        // Check if we're on a playlist URL
+        const path = window.location.pathname;
+        const playlistMatch = path.match(/^\/playlist\/(\d+)$/);
+        
+        if (playlistMatch) {
+            this.pendingPlaylistId = playlistMatch[1];
+        }
+    }
+
+    handleRouteChange(state) {
+        if (state && state.view === 'playlist' && state.playlistId) {
+            this.viewPlaylist(state.playlistId, false); // false = don't push state again
+        } else if (state && state.view === 'playlists') {
+            this.switchView('playlists');
+        } else {
+            // Default to playlists view
+            this.switchView('playlists');
+        }
+    }
+
+    navigateToPlaylists() {
+        history.pushState(
+            { view: 'playlists' },
+            '',
+            '/'
+        );
+        this.switchView('playlists');
     }
 
     async checkAutoConnection() {
@@ -19,8 +55,16 @@ class PlexPlaylistManager {
                 this.isConnected = true;
                 this.updateConnectionStatus();
                 this.showDashboard();
-                this.loadPlaylists();
                 this.loadLibraries();
+                
+                // Check if we have a pending playlist to load from the URL
+                if (this.pendingPlaylistId) {
+                    this.viewPlaylist(this.pendingPlaylistId, false);
+                    this.pendingPlaylistId = null;
+                } else {
+                    this.loadPlaylists();
+                }
+                
                 console.log('Auto-connected to Plex server');
             }
         } catch (error) {
@@ -50,6 +94,10 @@ class PlexPlaylistManager {
 
         document.getElementById('playlistDetailsClose').addEventListener('click', () => {
             this.hideModal('playlistDetailsModal');
+        });
+
+        document.getElementById('trackDetailsClose').addEventListener('click', () => {
+            this.hideModal('trackDetailsModal');
         });
 
         document.getElementById('cancelBtn').addEventListener('click', () => {
@@ -94,7 +142,7 @@ class PlexPlaylistManager {
 
         // Back to playlists button
         document.getElementById('backToPlaylistsBtn').addEventListener('click', () => {
-            this.switchView('playlists');
+            this.navigateToPlaylists();
         });
     }
 
@@ -125,43 +173,6 @@ class PlexPlaylistManager {
                 const playlistId = btn.dataset.playlistId;
                 const playlistTitle = btn.dataset.playlistTitle;
                 this.deletePlaylist(playlistId, playlistTitle);
-            });
-        });
-    }
-
-    bindSortableTableHeaders() {
-        document.querySelectorAll('.playlist-table th[data-sort]').forEach(header => {
-            header.addEventListener('click', () => {
-                const tableBody = document.getElementById('playlistsTableBody');
-                const sortKey = header.dataset.sort;
-                const sortDirection = header.dataset.sortDirection || 'desc';
-                const newSortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-                const rows = Array.from(tableBody.querySelectorAll('tr'));
-
-                rows.sort((a, b) => {
-                    const aValue = a.querySelector(`td:nth-child(${this.getColumnIndex(sortKey)})`).textContent;
-                    const bValue = b.querySelector(`td:nth-child(${this.getColumnIndex(sortKey)})`).textContent;
-
-                    if (sortKey === 'tracks') {
-                        const aNum = parseInt(aValue) || 0;
-                        const bNum = parseInt(bValue) || 0;
-                        return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
-                    } else if (sortKey === 'duration') {
-                        return sortDirection === 'asc' ? this.durationToSeconds(aValue) - this.durationToSeconds(bValue) : this.durationToSeconds(bValue) - this.durationToSeconds(aValue);
-                    }
-                    else {
-                        return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-                    }
-                });
-
-                rows.forEach(row => tableBody.appendChild(row));
-                header.dataset.sortDirection = newSortDirection;
-
-                // Update visual indicator
-                document.querySelectorAll('.playlist-table th[data-sort]').forEach(th => {
-                    th.classList.remove('sort-asc', 'sort-desc');
-                });
-                header.classList.add(newSortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
             });
         });
     }
@@ -264,7 +275,7 @@ class PlexPlaylistManager {
         if (!tableBody) {
             return;
         }
-        tableBody.innerHTML = '<tr><td colspan="4" class="loading"><i class="fas fa-spinner fa-spin"></i> Loading playlists...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="6" class="loading"><i class="fas fa-spinner fa-spin"></i> Loading playlists...</td></tr>';
 
         try {
             const response = await fetch('/api/playlists');
@@ -275,7 +286,7 @@ class PlexPlaylistManager {
             this.renderPlaylists(playlists);
         } catch (error) {
             console.error('❌ Error loading playlists:', error);
-            tableBody.innerHTML = `<tr><td colspan="4" class="error">Error loading playlists: ${error.message}</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="6" class="error">Error loading playlists: ${error.message}</td></tr>`;
         }
     }
 
@@ -283,31 +294,67 @@ class PlexPlaylistManager {
         const tableBody = document.getElementById('playlistsTableBody');
         
         if (playlists.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" class="empty-state">No playlists found. Create your first playlist!</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" class="empty-state">No playlists found. Create your first playlist!</td></tr>';
             return;
         }
 
-        const playlistRows = playlists.map(playlist => `
-            <tr data-playlist-id="${playlist.ratingKey}">
-                <td>${this.escapeHtml(playlist.title)}</td>
-                <td>${playlist.leafCount || 0}</td>
-                <td>${playlist.duration ? this.formatDuration(playlist.duration) : 'Unknown'}</td>
-                <td class="playlist-actions">
-                    <button class="btn btn-secondary view-playlist" data-playlist-id="${playlist.ratingKey}">
-                        <i class="fas fa-eye"></i> View
-                    </button>
-                    <button class="btn btn-danger delete-playlist" data-playlist-id="${playlist.ratingKey}" data-playlist-title="${this.escapeHtml(playlist.title)}">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `);
+        const playlistRows = playlists.map(playlist => {
+            const typeIcon = this.getPlaylistTypeIcon(playlist.playlistType);
+            const smartIcon = playlist.smart ? ' <i class="fas fa-bolt smart-playlist-icon" title="Smart Playlist"></i>' : '';
+            const addedDate = playlist.addedAt ? this.formatDate(playlist.addedAt) : 'Unknown';
+            const updatedDate = playlist.updatedAt ? this.formatDate(playlist.updatedAt) : 'Unknown';
+            
+            return `
+                <tr data-playlist-id="${playlist.ratingKey}" data-added="${playlist.addedAt || 0}" data-updated="${playlist.updatedAt || 0}">
+                    <td><i class="${typeIcon} playlist-type-icon" title="${this.getPlaylistTypeLabel(playlist.playlistType)}"></i> ${this.escapeHtml(playlist.title)}${smartIcon}</td>
+                    <td>${playlist.leafCount || 0}</td>
+                    <td>${playlist.duration ? this.formatDuration(playlist.duration) : 'Unknown'}</td>
+                    <td>${addedDate}</td>
+                    <td>${updatedDate}</td>
+                    <td class="playlist-actions">
+                        <button class="btn btn-secondary view-playlist" data-playlist-id="${playlist.ratingKey}">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <button class="btn btn-danger delete-playlist" data-playlist-id="${playlist.ratingKey}" data-playlist-title="${this.escapeHtml(playlist.title)}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
         
         tableBody.innerHTML = playlistRows.join('');
         
         // Add event listeners for playlist rows
         this.bindPlaylistEvents();
         this.bindSortableTableHeaders();
+    }
+
+    getPlaylistTypeIcon(type) {
+        const icons = {
+            'audio': 'fas fa-music',
+            'video': 'fas fa-film',
+            'photo': 'fas fa-images'
+        };
+        return icons[type] || 'fas fa-list';
+    }
+
+    getPlaylistTypeLabel(type) {
+        const labels = {
+            'audio': 'Audio Playlist',
+            'video': 'Video Playlist',
+            'photo': 'Photo Playlist'
+        };
+        return labels[type] || 'Playlist';
+    }
+
+    formatDate(timestamp) {
+        const date = new Date(timestamp * 1000);
+        return date.toLocaleDateString(undefined, { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+        });
     }
 
     bindSortableTableHeaders() {
@@ -349,6 +396,13 @@ class PlexPlaylistManager {
                 const rows = Array.from(tableBody.querySelectorAll('tr'));
 
                 rows.sort((a, b) => {
+                    // Handle date sorting using data attributes
+                    if (sortKey === 'added' || sortKey === 'updated') {
+                        const aValue = parseInt(a.dataset[sortKey]) || 0;
+                        const bValue = parseInt(b.dataset[sortKey]) || 0;
+                        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+                    }
+                    
                     const aValue = a.querySelector(`td:nth-child(${this.getColumnIndex(sortKey)})`).textContent;
                     const bValue = b.querySelector(`td:nth-child(${this.getColumnIndex(sortKey)})`).textContent;
 
@@ -466,7 +520,11 @@ class PlexPlaylistManager {
     }
 
     async deletePlaylist(id, name) {
-        if (!confirm(`Are you sure you want to delete "${name}"?`)) {
+        const confirmed = await this.showConfirmModal(
+            `Are you sure you want to delete "${name}"?`,
+            { title: 'Delete Playlist', confirmText: 'Delete', danger: true }
+        );
+        if (!confirmed) {
             return;
         }
 
@@ -491,9 +549,18 @@ class PlexPlaylistManager {
         }
     }
 
-    async viewPlaylist(id) {
+    async viewPlaylist(id, updateUrl = true) {
         // Immediately switch to playlist detail view with skeleton loading
         this.showPlaylistDetailSkeleton();
+        
+        // Update URL if requested
+        if (updateUrl) {
+            history.pushState(
+                { view: 'playlist', playlistId: id },
+                '',
+                `/playlist/${id}`
+            );
+        }
         
         try {
             const response = await fetch(`/api/playlists/${id}`);
@@ -527,12 +594,6 @@ class PlexPlaylistManager {
 
         const tracksContainer = document.getElementById('playlistDetailTracks');
         tracksContainer.innerHTML = `
-            <div class="skeleton skeleton-tracks-header"></div>
-            <div class="skeleton-filter-container">
-                <div class="skeleton skeleton-filter-btn"></div>
-                <div class="skeleton skeleton-filter-btn"></div>
-                <div class="skeleton skeleton-filter-btn"></div>
-            </div>
             <div class="skeleton-track-list">
                 ${Array.from({length: 8}, (_, i) => `
                     <div class="skeleton-track-item">
@@ -563,7 +624,7 @@ class PlexPlaylistManager {
                     <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: var(--error-color); margin-bottom: 1rem;"></i>
                     <h4>Failed to Load Playlist</h4>
                     <p>${this.escapeHtml(errorMessage)}</p>
-                    <button class="btn btn-primary" onclick="app.switchView('playlists')" style="margin-top: 1rem;">
+                    <button class="btn btn-primary" onclick="app.navigateToPlaylists()" style="margin-top: 1rem;">
                         <i class="fas fa-arrow-left"></i> Back to Playlists
                     </button>
                 </div>
@@ -607,34 +668,110 @@ class PlexPlaylistManager {
 
         const tracksContainer = document.getElementById('playlistDetailTracks');
         if (items && items.length > 0) {
+            // Initialize pagination state
+            this.tracksPagination = {
+                currentPage: 1,
+                pageSize: 1000,
+                searchQuery: ''
+            };
+            
             tracksContainer.innerHTML = `
-                <div class="tracks-header">
-                    <h4>Tracks</h4>
-                    <div class="bulk-actions" id="bulkActions" style="display: none;">
+                <div class="tracks-toolbar">
+                    <div class="tracks-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="trackSearchInput" placeholder="Search tracks..." />
+                    </div>
+                    <div class="bulk-actions-bar" id="bulkActions" style="display: none;">
                         <span class="selected-count" id="selectedCount">0 selected</span>
                         <button class="btn btn-danger" id="removeSelectedBtn">
                             <i class="fas fa-trash"></i> Remove Selected
                         </button>
                     </div>
                 </div>
-                <div id="trackItems">
-                    <div class="track-item select-all-row">
-                        <label class="track-checkbox">
-                            <input type="checkbox" id="selectAllTracks">
-                            <span class="checkmark"></span>
-                        </label>
-                        <div class="track-info select-all-label">
-                            <h5>Select All</h5>
-                        </div>
+                <div id="trackItems"></div>
+                <div class="tracks-pagination" id="tracksPagination"></div>
+            `;
+        } else {
+            tracksContainer.innerHTML = '<p>No tracks in this playlist.</p>';
+        }
+
+        this.currentPlaylist = data;
+        
+        if (items && items.length > 0) {
+            this.renderPaginatedTracks();
+            this.bindTrackSearchEvent();
+        }
+        
+        this.bindRatingEvents();
+        this.bindSortByRatingEvent();
+        this.bindRatingFilterEvent();
+        this.bindTrackSelectionEvents();
+        this.bindTrackTitleClickEvents();
+        
+        // Restore filter state after binding events
+        setTimeout(() => {
+            this.restoreFilterState();
+        }, 100);
+    }
+
+    getFilteredTracks() {
+        const items = this.currentPlaylist?.items || [];
+        const query = this.tracksPagination.searchQuery.toLowerCase();
+        
+        if (!query) {
+            return items;
+        }
+        
+        return items.filter(track => {
+            const title = (track.title || '').toLowerCase();
+            const artist = (track.grandparentTitle || '').toLowerCase();
+            const album = (track.parentTitle || '').toLowerCase();
+            return title.includes(query) || artist.includes(query) || album.includes(query);
+        });
+    }
+
+    renderPaginatedTracks() {
+        const playlist = this.currentPlaylist.playlist;
+        const filteredItems = this.getFilteredTracks();
+        const { currentPage, pageSize } = this.tracksPagination;
+        
+        const totalItems = filteredItems.length;
+        const totalPages = Math.ceil(totalItems / pageSize);
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, totalItems);
+        const paginatedItems = filteredItems.slice(startIndex, endIndex);
+        
+        const trackItemsContainer = document.getElementById('trackItems');
+        
+        if (paginatedItems.length === 0) {
+            trackItemsContainer.innerHTML = `
+                <div class="empty-tracks-message">
+                    <i class="fas fa-search"></i>
+                    <p>No tracks found matching "${this.escapeHtml(this.tracksPagination.searchQuery)}"</p>
+                </div>
+            `;
+        } else {
+            trackItemsContainer.innerHTML = `
+                <div class="track-item select-all-row">
+                    <label class="track-checkbox">
+                        <input type="checkbox" id="selectAllTracks">
+                        <span class="checkmark"></span>
+                    </label>
+                    <div class="track-info select-all-label">
+                        <h5>Select All (on this page)</h5>
                     </div>
-                ${items.map(track => `
-                    <div class="track-item" data-rating="${track.userRating || 0}" data-track-id="${track.ratingKey}" data-playlist-item-id="${track.playlistItemID}">
+                </div>
+                ${paginatedItems.map((track) => {
+                    // Find the original index in the full items array
+                    const originalIndex = this.currentPlaylist.items.indexOf(track);
+                    return `
+                    <div class="track-item" data-rating="${track.userRating || 0}" data-track-id="${track.ratingKey}" data-playlist-item-id="${track.playlistItemID}" data-track-index="${originalIndex}">
                         <label class="track-checkbox">
                             <input type="checkbox" class="track-select" data-playlist-item-id="${track.playlistItemID}">
                             <span class="checkmark"></span>
                         </label>
                         <div class="track-info">
-                            <h5>${this.escapeHtml(track.title)}</h5>
+                            <h5 class="track-title-link" data-track-index="${originalIndex}">${this.escapeHtml(track.title)}</h5>
                             <p>${this.escapeHtml(track.grandparentTitle || 'Unknown Artist')} - ${this.escapeHtml(track.parentTitle || 'Unknown Album')}</p>
                         </div>
                         <div class="track-actions">
@@ -646,23 +783,252 @@ class PlexPlaylistManager {
                             </button>
                         </div>
                     </div>
-                `).join('')}
+                `}).join('')}
+            `;
+        }
+        
+        // Render pagination controls
+        this.renderPaginationControls(totalItems, totalPages, currentPage);
+        
+        // Rebind events for the new elements
+        this.bindRatingEvents();
+        this.bindTrackSelectionEvents();
+        this.bindTrackTitleClickEvents();
+    }
+
+    renderPaginationControls(totalItems, totalPages, currentPage) {
+        const paginationContainer = document.getElementById('tracksPagination');
+        const { pageSize } = this.tracksPagination;
+        const startItem = totalItems === 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+        const endItem = Math.min(currentPage * pageSize, totalItems);
+        
+        paginationContainer.innerHTML = `
+            <div class="pagination-info">
+                Showing ${startItem}-${endItem} of ${totalItems} tracks
+            </div>
+            <div class="pagination-controls">
+                <button class="btn btn-secondary pagination-btn" id="prevPageBtn" ${currentPage <= 1 ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-left"></i> Previous
+                </button>
+                <span class="pagination-current">Page ${currentPage} of ${totalPages || 1}</span>
+                <button class="btn btn-secondary pagination-btn" id="nextPageBtn" ${currentPage >= totalPages ? 'disabled' : ''}>
+                    Next <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <div class="pagination-size">
+                <label for="pageSizeSelect">Tracks per page:</label>
+                <select id="pageSizeSelect">
+                    <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
+                    <option value="100" ${pageSize === 100 ? 'selected' : ''}>100</option>
+                    <option value="250" ${pageSize === 250 ? 'selected' : ''}>250</option>
+                    <option value="500" ${pageSize === 500 ? 'selected' : ''}>500</option>
+                    <option value="1000" ${pageSize === 1000 ? 'selected' : ''}>1000</option>
+                    <option value="2000" ${pageSize === 2000 ? 'selected' : ''}>2000</option>
+                    <option value="5000" ${pageSize === 5000 ? 'selected' : ''}>5000</option>
+                    <option value="10000" ${pageSize === 10000 ? 'selected' : ''}>10000</option>
+                </select>
+            </div>
+        `;
+        
+        // Bind pagination events
+        document.getElementById('prevPageBtn')?.addEventListener('click', () => {
+            if (this.tracksPagination.currentPage > 1) {
+                this.tracksPagination.currentPage--;
+                this.renderPaginatedTracks();
+                this.scrollToTracksTop();
+            }
+        });
+        
+        document.getElementById('nextPageBtn')?.addEventListener('click', () => {
+            if (this.tracksPagination.currentPage < totalPages) {
+                this.tracksPagination.currentPage++;
+                this.renderPaginatedTracks();
+                this.scrollToTracksTop();
+            }
+        });
+        
+        document.getElementById('pageSizeSelect')?.addEventListener('change', (e) => {
+            this.tracksPagination.pageSize = parseInt(e.target.value);
+            this.tracksPagination.currentPage = 1; // Reset to first page
+            this.renderPaginatedTracks();
+        });
+    }
+
+    scrollToTracksTop() {
+        const trackItems = document.getElementById('trackItems');
+        if (trackItems) {
+            trackItems.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    bindTrackSearchEvent() {
+        const searchInput = document.getElementById('trackSearchInput');
+        if (searchInput) {
+            let debounceTimer;
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    this.tracksPagination.searchQuery = e.target.value;
+                    this.tracksPagination.currentPage = 1; // Reset to first page on search
+                    this.renderPaginatedTracks();
+                }, 300); // Debounce for 300ms
+            });
+        }
+    }
+
+    bindTrackTitleClickEvents() {
+        document.querySelectorAll('.track-title-link').forEach(titleElement => {
+            titleElement.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const trackIndex = parseInt(e.target.dataset.trackIndex);
+                if (this.currentPlaylist && this.currentPlaylist.items && this.currentPlaylist.items[trackIndex]) {
+                    this.showTrackDetails(this.currentPlaylist.items[trackIndex]);
+                }
+            });
+        });
+    }
+
+    showTrackDetails(track) {
+        const modal = document.getElementById('trackDetailsModal');
+        const titleElement = document.getElementById('trackDetailsTitle');
+        const contentElement = document.getElementById('trackDetailsContent');
+        
+        titleElement.textContent = 'Track Details';
+        
+        // Format duration
+        const duration = track.duration ? this.formatDuration(track.duration) : 'Unknown';
+        
+        // Format rating as stars
+        const ratingStars = [...Array(5).keys()].map(i => 
+            `<i class="fas fa-star ${track.userRating && track.userRating >= (i + 1) * 2 ? 'rated' : ''}"></i>`
+        ).join('');
+        const ratingText = track.userRating ? `${track.userRating / 2}/5` : 'Not rated';
+        
+        // Format dates
+        const addedAt = track.addedAt ? new Date(track.addedAt * 1000).toLocaleDateString() : 'Unknown';
+        const updatedAt = track.updatedAt ? new Date(track.updatedAt * 1000).toLocaleDateString() : 'Unknown';
+        const releaseDate = track.originallyAvailableAt || (track.year ? track.year.toString() : 'Unknown');
+        
+        // Get media info if available
+        let mediaInfoHtml = '';
+        if (track.Media && track.Media.length > 0) {
+            const media = track.Media[0];
+            const parts = media.Part || [];
+            const part = parts[0] || {};
+            
+            const codec = media.audioCodec || media.codec || 'Unknown';
+            const bitrate = media.bitrate ? `${media.bitrate} kbps` : 'Unknown';
+            const channels = media.audioChannels ? `${media.audioChannels} channels` : '';
+            const container = part.container || media.container || 'Unknown';
+            const fileSize = part.size ? this.formatFileSize(part.size) : 'Unknown';
+            
+            mediaInfoHtml = `
+                <div class="track-details-section">
+                    <h4><i class="fas fa-file-audio"></i> Media Information</h4>
+                    <div class="media-info-container">
+                        <div class="media-info-item">
+                            <i class="fas fa-wave-square"></i>
+                            <span>Format: ${codec.toUpperCase()} (${container.toUpperCase()})</span>
+                        </div>
+                        ${bitrate !== 'Unknown' ? `
+                        <div class="media-info-item">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Bitrate: ${bitrate}</span>
+                        </div>` : ''}
+                        ${channels ? `
+                        <div class="media-info-item">
+                            <i class="fas fa-volume-up"></i>
+                            <span>Audio: ${channels}</span>
+                        </div>` : ''}
+                        ${fileSize !== 'Unknown' ? `
+                        <div class="media-info-item">
+                            <i class="fas fa-hdd"></i>
+                            <span>File Size: ${fileSize}</span>
+                        </div>` : ''}
+                    </div>
                 </div>
             `;
-        } else {
-            tracksContainer.innerHTML = '<p>No tracks in this playlist.</p>';
         }
-
-        this.currentPlaylist = data;
-        this.bindRatingEvents();
-        this.bindSortByRatingEvent();
-        this.bindRatingFilterEvent();
-        this.bindTrackSelectionEvents();
         
-        // Restore filter state after binding events
-        setTimeout(() => {
-            this.restoreFilterState();
-        }, 100);
+        // Build artwork HTML
+        const artworkHtml = track.thumb 
+            ? `<img src="${track.thumb}" alt="${this.escapeHtml(track.title)}" class="track-details-artwork" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+               <div class="track-details-artwork-placeholder" style="display:none;"><i class="fas fa-music"></i></div>`
+            : `<div class="track-details-artwork-placeholder"><i class="fas fa-music"></i></div>`;
+        
+        contentElement.innerHTML = `
+            <div class="track-details-header">
+                ${artworkHtml}
+                <div class="track-details-main">
+                    <h2>${this.escapeHtml(track.title)}</h2>
+                    <p class="track-artist">${this.escapeHtml(track.grandparentTitle || 'Unknown Artist')}</p>
+                    <p class="track-album">${this.escapeHtml(track.parentTitle || 'Unknown Album')}</p>
+                    <div class="track-details-rating">
+                        ${ratingStars}
+                        <span class="rating-label">${ratingText}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="track-details-section">
+                <h4><i class="fas fa-info-circle"></i> Track Information</h4>
+                <div class="track-details-grid">
+                    <div class="track-detail-item">
+                        <span class="label">Duration</span>
+                        <span class="value">${duration}</span>
+                    </div>
+                    <div class="track-detail-item">
+                        <span class="label">Track Number</span>
+                        <span class="value">${track.index || 'Unknown'}${track.parentIndex ? ` (Disc ${track.parentIndex})` : ''}</span>
+                    </div>
+                    <div class="track-detail-item">
+                        <span class="label">Release Date</span>
+                        <span class="value">${releaseDate}</span>
+                    </div>
+                    <div class="track-detail-item">
+                        <span class="label">Added to Library</span>
+                        <span class="value">${addedAt}</span>
+                    </div>
+                    ${track.viewCount ? `
+                    <div class="track-detail-item">
+                        <span class="label">Play Count</span>
+                        <span class="value highlight">${track.viewCount} plays</span>
+                    </div>` : ''}
+                    ${track.lastViewedAt ? `
+                    <div class="track-detail-item">
+                        <span class="label">Last Played</span>
+                        <span class="value">${new Date(track.lastViewedAt * 1000).toLocaleDateString()}</span>
+                    </div>` : ''}
+                </div>
+            </div>
+            
+            ${mediaInfoHtml}
+            
+            <div class="track-details-section">
+                <h4><i class="fas fa-database"></i> Identifiers</h4>
+                <div class="track-details-grid">
+                    <div class="track-detail-item">
+                        <span class="label">Track ID</span>
+                        <span class="value">${track.ratingKey || 'Unknown'}</span>
+                    </div>
+                    ${track.playlistItemID ? `
+                    <div class="track-detail-item">
+                        <span class="label">Playlist Item ID</span>
+                        <span class="value">${track.playlistItemID}</span>
+                    </div>` : ''}
+                </div>
+            </div>
+        `;
+        
+        this.showModal('trackDetailsModal');
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     preserveFilterState() {
@@ -1116,7 +1482,11 @@ class PlexPlaylistManager {
         }
 
         const trackCount = selectedCheckboxes.length;
-        if (!confirm(`Are you sure you want to remove ${trackCount} track${trackCount > 1 ? 's' : ''} from this playlist?`)) {
+        const confirmed = await this.showConfirmModal(
+            `Are you sure you want to remove ${trackCount} track${trackCount > 1 ? 's' : ''} from this playlist?`,
+            { title: 'Remove Tracks', confirmText: 'Remove', danger: true }
+        );
+        if (!confirmed) {
             return;
         }
 
@@ -1206,6 +1576,60 @@ class PlexPlaylistManager {
 
     hideModal(modalId) {
         document.getElementById(modalId).classList.remove('active');
+    }
+
+    showConfirmModal(message, options = {}) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('confirmModal');
+            const titleEl = document.getElementById('confirmModalTitle');
+            const messageEl = document.getElementById('confirmModalMessage');
+            const iconEl = document.getElementById('confirmModalIcon');
+            const confirmBtn = document.getElementById('confirmModalConfirm');
+            const cancelBtn = document.getElementById('confirmModalCancel');
+            const closeBtn = document.getElementById('confirmModalClose');
+            
+            // Set content
+            titleEl.textContent = options.title || 'Confirm';
+            messageEl.textContent = message;
+            confirmBtn.textContent = options.confirmText || 'Confirm';
+            cancelBtn.textContent = options.cancelText || 'Cancel';
+            
+            // Set icon style
+            iconEl.className = 'fas fa-exclamation-triangle confirm-modal-icon';
+            if (options.danger) {
+                iconEl.classList.add('danger');
+            }
+            
+            // Set confirm button style
+            confirmBtn.className = options.danger ? 'btn btn-danger' : 'btn btn-primary';
+            
+            // Clean up previous listeners
+            const newConfirmBtn = confirmBtn.cloneNode(true);
+            const newCancelBtn = cancelBtn.cloneNode(true);
+            const newCloseBtn = closeBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+            cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+            closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+            
+            // Add new listeners
+            newConfirmBtn.addEventListener('click', () => {
+                this.hideModal('confirmModal');
+                resolve(true);
+            });
+            
+            newCancelBtn.addEventListener('click', () => {
+                this.hideModal('confirmModal');
+                resolve(false);
+            });
+            
+            newCloseBtn.addEventListener('click', () => {
+                this.hideModal('confirmModal');
+                resolve(false);
+            });
+            
+            // Show modal
+            this.showModal('confirmModal');
+        });
     }
 
     showToast(message, type = 'info') {
@@ -1316,7 +1740,11 @@ class PlexPlaylistManager {
     }
 
     async clearLogs() {
-        if (!confirm('Are you sure you want to clear all logs?')) {
+        const confirmed = await this.showConfirmModal(
+            'Are you sure you want to clear all logs?',
+            { title: 'Clear Logs', confirmText: 'Clear', danger: true }
+        );
+        if (!confirmed) {
             return;
         }
 
